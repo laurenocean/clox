@@ -4,7 +4,7 @@ project(clox VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(clox main.c)
+add_executable(clox main.c chunk.c debug.c memory.c value.c)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
