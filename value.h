@@ -14,6 +14,7 @@ typedef enum {
 } ValueType;
 
 typedef struct {
+    
     ValueType type;
     union {
         bool boolean;
