@@ -224,7 +224,7 @@ static void endScope() {
 }
 
 static void expression();
-static void statement();
+static void statement(int loopStart);
 static void declaration();
 
 static ParseRule* getRule(TokenType type);
@@ -503,9 +503,9 @@ static void expression() {
     parsePrecedence(PREC_ASSIGNMENT);
 }
 
-static void block() {
+static void block(int loopStart) {
     while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-        declaration();
+        declaration(loopStart);
     }
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
@@ -528,7 +528,7 @@ static void function(FunctionType type) {
     }
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
     consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    block();
+    block(-1);
 
     ObjFunction* function = endCompiler();
     emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
@@ -593,7 +593,7 @@ static void forStatement() {
         patchJump(bodyJump);
     }
 
-    statement();
+    statement(loopStart);
     emitLoop(loopStart);
 
     if (exitJump != -1) {
@@ -603,21 +603,21 @@ static void forStatement() {
     endScope();
 }
 
-static void ifStatement() {
+static void ifStatement(int loopStart) {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
     int thenJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP);
-    statement();
+    statement(loopStart);
 
     int elseJump = emitJump(OP_JUMP);
 
     patchJump(thenJump);
     emitByte(OP_POP);
 
-    if (match(TOKEN_ELSE)) statement();
+    if (match(TOKEN_ELSE)) statement(loopStart);
     patchJump(elseJump);
 }
 
@@ -629,7 +629,7 @@ static void printStatement() {
 
 static void returnStatement() {
     if (current->type == TYPE_SCRIPT) {
-        error("Can't returnfrom top-level code.");
+        error("Can't return from top-level code.");
     }
     
     if (match(TOKEN_SEMICOLON)) {
@@ -649,14 +649,23 @@ static void whileStatement() {
 
     int exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP);
-    statement();
+    statement(loopStart);
     emitLoop(loopStart);
 
     patchJump(exitJump);
     emitByte(OP_POP);
 }
 
-//add continue statement
+static void continueStatement(int loopStart) {
+   if (loopStart == -1) {
+        error("Can't continue from outside a loop.");
+        return; 
+    }
+     
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+    emitLoop(loopStart); 
+}
+
 
 static void synchronize() {
     parser.panicMode = false;
@@ -670,6 +679,7 @@ static void synchronize() {
             case TOKEN_FOR:
             case TOKEN_IF:
             case TOKEN_WHILE:
+            case TOKEN_CONTINUE:
             case TOKEN_PRINT:
             case TOKEN_RETURN:
             return;
@@ -682,32 +692,34 @@ static void synchronize() {
     }
 }
 
-static void declaration() {
+static void declaration(int loopStart) {
     if (match(TOKEN_FUN)) {
         funDeclaration();
     } else if (match(TOKEN_VAR)) {
         varDeclaration();
     } else {
-    statement();
+        statement(loopStart);
     }
 
     if (parser.panicMode) synchronize();
 }
 
-static void statement() {
+static void statement(int loopStart) {
     if (match(TOKEN_PRINT)) {
         printStatement();
     } else if (match(TOKEN_FOR)) {
-        forStatement();
+        forStatement(loopStart);
     } else if (match(TOKEN_IF)) {
-        ifStatement();
+        ifStatement(loopStart);
+    } else if (match(TOKEN_CONTINUE)) {
+        continueStatement(loopStart);
     } else if (match(TOKEN_RETURN)) {
         returnStatement();
     } else if (match(TOKEN_WHILE)) {
         whileStatement();
     } else if (match(TOKEN_LEFT_BRACE)) {
         beginScope();
-        block();
+        block(loopStart);
         endScope();
     } else {
         expressionStatement();
@@ -723,7 +735,7 @@ ObjFunction* compile(const char* source) {
     parser.panicMode = false;
     advance();
     while (!match(TOKEN_EOF)) {
-        declaration();
+        declaration(-1);
     }
 
     ObjFunction* function = endCompiler();

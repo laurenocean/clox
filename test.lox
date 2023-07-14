@@ -1,8 +1,32 @@
-fun fib(n) {
-  if (n < 2) return n;
-  return fib(n - 2) + fib(n - 1);
+var idx = 0;
+var loop = 0;
+while (idx < 10) {
+  // continue returns to here
+  loop = loop + 1;
+  if (idx == 2) {
+    idx = idx + 5;
+    continue;
+  }
+  idx = idx + 1;
 }
 
-var start = clock();
-print fib(35);
-print clock() - start;
+print idx;  // 10
+print loop; // 6
+
+// Also test `for` loops.
+loop = 0;
+for (idx = 0;
+     idx < 10;
+     // continue returns to here
+     idx = idx + 1)
+{
+  if (idx == 2) {
+    idx = idx + 5;
+    continue;
+  }
+  loop = loop + 1;
+}
+
+print idx;  // 10
+print loop; // 4
+
