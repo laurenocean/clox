@@ -138,8 +138,9 @@ static InterpretResult run() {
     #define READ_BYTE() (*frame->ip++)
 
     #define READ_SHORT() \
-        (frame->ip += 2, (uint16_t)(frame->ip[-2] << 8 | frame->ip[-1]))
-
+        (frame->ip += 2, \
+        (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+ 
     #define READ_CONSTANT() \
         (frame->function->chunk.constants.values[READ_BYTE()])
 
@@ -222,8 +223,8 @@ static InterpretResult run() {
                 push(BOOL_VAL(valuesEqual(a, b)));
                 break;
             }
-            case OP_GREATER:    BINARY_OP(NUMBER_VAL, >); break;
-            case OP_LESS:       BINARY_OP(NUMBER_VAL, <); break;
+            case OP_GREATER:    BINARY_OP(BOOL_VAL, >); break;
+            case OP_LESS:       BINARY_OP(BOOL_VAL, <); break;
             case OP_ADD: {
                 if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
                     concatenate();
